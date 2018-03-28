@@ -26,7 +26,10 @@ void main() {
     // if using textures, inverse gamma correct
     col = pow(col, vec3(2.2));
 
-    fragColor[0] = vec4(0.0);
+    // only fragColor[0] is 32 bit
+    // want normal in worldspace, depth in camera space
+    // fs_Pos is already in camera space from standard-vert
+    fragColor[0] = vec4(fs_Nor.xyz, clamp(fs_Pos.z, 0.0, 1.0)); // pass 
     fragColor[1] = vec4(0.0);
     fragColor[2] = vec4(col, 1.0);
 }
