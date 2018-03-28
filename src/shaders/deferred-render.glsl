@@ -76,21 +76,17 @@ void main() {
 	// map UV to [-1, 1] NDC space
 	vec2 ndcPos = fs_UV.xy * 2.0 - 1.0;
 
-	vec3 color = vec3(0.0, 0.0, 0.0); // sky color
+	vec3 color = vec3(0.53, 0.85, 0.95); // sky color
 
-	if (gb1.x != 1.0) { // if background
-		
-		//float fbmResult = fbm(ndcPos.x, ndcPos.y);
+	//float fbmResult = fbm(ndcPos.x, ndcPos.y);
 		//fbmResult /= 100.0;
 	
 		//color += vec3(fbmResult, fbmResult, fbmResult);
 
-		out_Col = vec4(0.53, 0.85, 0.95, 1.0);
+		//out_Col = vec4(0.53, 0.85, 0.95, 1.0);
 
 		//out_Col = vec4(1.0, 0.0, 0.0, 1.0);
 
-
-	} else {
 
 		vec3 nor = normalize(gb0.xyz);
 
@@ -115,10 +111,8 @@ void main() {
 		float specularTerm = max(pow(dot(H, nor), shininess), 0.0);
 
 		color = diffuseCol * (diffuseTerm + ambientTerm) + specularCol * specularTerm;
+	
 
-		out_Col = vec4(color, 1.0);
-
-	}
-
+	out_Col = vec4(color, 1.0);
 
 }
