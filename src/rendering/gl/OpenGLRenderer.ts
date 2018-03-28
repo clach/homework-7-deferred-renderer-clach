@@ -65,9 +65,8 @@ class OpenGLRenderer {
     this.post32Targets = [undefined, undefined, undefined];
     this.post32Passes = [];
 
-    // TODO: these are placeholder post shaders, replace them with something good
-    //this.add8BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/DoF-frag.glsl'))));
-    //this.add8BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/examplePost2-frag.glsl'))));
+    this.add8BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/DoF-frag.glsl'))));
+    this.add8BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/crosshatch-frag.glsl'))));
 
     this.add32BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/bloomGlow-frag.glsl'))));
     this.add32BitPass(new PostProcess(new Shader(gl.FRAGMENT_SHADER, require('../../shaders/bloomBlur-frag.glsl'))));
@@ -172,7 +171,6 @@ class OpenGLRenderer {
       gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 
       this.post32Targets[i] = gl.createTexture();
-      console.log(this.post32Targets);
 
       gl.bindTexture(gl.TEXTURE_2D, this.post32Targets[i]);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -283,6 +281,9 @@ class OpenGLRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.post32Targets[0]);
 
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.gbTargets[1]);
+
     this.post32Passes[0].draw(); // run bloomGlow first
 
     // bind default frame buffer
@@ -311,7 +312,7 @@ class OpenGLRenderer {
     // bind default frame buffer
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  
+
     // third pass: bloom blend
     // WRITE TO 1, READ FROM 0 AND 2
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.post32Buffers[1]);
@@ -337,20 +338,15 @@ class OpenGLRenderer {
 
   }
 
-  // TODO: pass any info you need as args
-  renderPostProcessHDR(bloomOn: boolean) {
-    // TODO: replace this with your post 32-bit pipeline
-    // the loop shows how to swap between frame buffers and textures given a list of processes,
-    // but specific shaders (e.g. bloom) need specific info as textures
+
+  renderPostProcessHDR(bloomOn: boolean, post8On: boolean) {
 
     if (bloomOn) {
       this.renderBloom();
     }
 
     // apply tonemapping
-    // TODO: if you significantly change your framework, ensure this doesn't cause bugs!
-    // render to the first 8 bit buffer if there is more post, else default buffer
-    if (this.post8Passes.length > 0) {
+    if (this.post8Passes.length > 0 && post8On) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.post8Buffers[0]);
     }
     else {
@@ -371,22 +367,19 @@ class OpenGLRenderer {
     } else {
       gl.bindTexture(gl.TEXTURE_2D, this.post32Targets[0]);
     }
-  
+
     this.tonemapPass.draw();
 
   }
 
+  renderPostProcessLDR(DoFOn: boolean, crosshatchOn: boolean) {
 
-  // TODO: pass any info you need as args
-  renderPostProcessLDR() {
-    // TODO: replace this with your post 8-bit pipeline
-    // the loop shows how to swap between frame buffers and textures given a list of processes,
-    // but specific shaders (e.g. motion blur) need specific info as textures
-    for (let i = 0; i < this.post8Passes.length; i++) {
-      // pingpong framebuffers for each pass
-      // if this is the last pass, default is bound
-      if (i < this.post8Passes.length - 1) gl.bindFramebuffer(gl.FRAMEBUFFER, this.post8Buffers[(i + 1) % 2]);
-      else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (DoFOn) {
+      if (crosshatchOn) { // DoF is not last
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.post8Buffers[1]);
+      } else { // DoF is last
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
 
       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
       gl.disable(gl.DEPTH_TEST);
@@ -394,16 +387,68 @@ class OpenGLRenderer {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.post8Targets[(i) % 2]);
+      gl.bindTexture(gl.TEXTURE_2D, this.post8Targets[0]);
       gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, this.gbTargets[1]);
+      gl.bindTexture(gl.TEXTURE_2D, this.gbTargets[0]);
 
-      this.post8Passes[i].setDimensions(vec2.fromValues(window.innerWidth, window.innerHeight));
-      this.post8Passes[i].draw();
+      this.post8Passes[0].setDimensions(vec2.fromValues(window.innerWidth, window.innerHeight));
+      this.post8Passes[0].draw();
 
       // bind default
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
+
+    if (crosshatchOn) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); // crosshatch is last one
+
+      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+      gl.disable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      gl.activeTexture(gl.TEXTURE0);
+      if (DoFOn) { // DoF is first
+        gl.bindTexture(gl.TEXTURE_2D, this.post8Targets[1]);
+      } else { // crosshatch is first
+        gl.bindTexture(gl.TEXTURE_2D, this.post8Targets[0]);
+      }
+
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, this.gbTargets[1]);
+
+      this.post8Passes[1].setDimensions(vec2.fromValues(window.innerWidth, window.innerHeight));
+      this.post8Passes[1].draw();
+
+      // bind default
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    }
+
+/*
+    for (let i = 0; i < this.post8Passes.length; i++) {
+
+        // pingpong framebuffers for each pass
+        // if this is the last pass, default is bound
+        if (i < this.post8Passes.length - 1) gl.bindFramebuffer(gl.FRAMEBUFFER, this.post8Buffers[(i + 1) % 2]);
+        else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.disable(gl.DEPTH_TEST);
+        gl.enable(gl.BLEND);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.post8Targets[(i) % 2]);
+
+        console.log("hey2");
+
+        this.post8Passes[i].draw();
+
+
+        // bind default
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }*/
+
   }
 
 };

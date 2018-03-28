@@ -13,7 +13,8 @@ import Texture from './rendering/gl/Texture';
 // Define an object with application parameters and button callbacks
 const controls = {
   'DepthOfField': false,
-  'Bloom': false  
+  'Bloom': false,
+  'CrossHatch': false
 };
 
 let square: Square;
@@ -79,8 +80,9 @@ function main() {
 
   // Add controls to the gui
   const gui = new DAT.GUI();
-  gui.add(controls, 'DepthOfField');
   gui.add(controls, 'Bloom');
+  gui.add(controls, 'DepthOfField');
+  gui.add(controls, 'CrossHatch');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -127,9 +129,9 @@ function main() {
     // render from gbuffers into 32-bit color buffer
     renderer.renderFromGBuffer(camera);
     // apply 32-bit post and tonemap from 32-bit color to 8-bit color
-    renderer.renderPostProcessHDR(controls.Bloom);
+    renderer.renderPostProcessHDR(controls.Bloom, controls.DepthOfField || controls.CrossHatch);
     // apply 8-bit post and draw
-    renderer.renderPostProcessLDR();
+    renderer.renderPostProcessLDR(controls.DepthOfField, controls.CrossHatch);
 
     stats.end();
     requestAnimationFrame(tick);

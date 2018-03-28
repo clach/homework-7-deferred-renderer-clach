@@ -33,9 +33,9 @@ void main() {
 	//vec3 color = texture(u_frame, fs_UV).xyz;
 
 	// let's do...depth of field
-	float focalLength = 0.2; // focal length of camera
+	float focalLength = 0.25; // focal length of camera
 
-	float depth = texture(u_frame2, fs_UV).w;
+	float depth = texture(u_frame2, fs_UV).w / 150.0;
 	float distToCamera = abs(depth - focalLength);
 
 	float sigma = distToCamera; // sigma ranges from 0 to 1
@@ -70,5 +70,6 @@ void main() {
 	}
 
 	out_Col = vec4(color / (divisor * divisor), 1.0);
-	out_Col = vec4(depth, depth, depth, 1.0);
+	//out_Col = vec4(sigma, sigma, sigma, 1.0);
+
 }
